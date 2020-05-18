@@ -52,7 +52,7 @@ class CartPoleEnv(gym.Env):
         Pole Angle is more than 12 degrees.
         Cart Position is more than 2.4 (center of the cart reaches the edge of
         the display).
-        Episode length is greater than 200.
+        Episode length is greater than 200git@github.com:Ankur-Deka/gym.git.
         Solved Requirements:
         Considered solved when the average reward is greater than or equal to
         195.0 over 100 consecutive trials.
@@ -63,7 +63,7 @@ class CartPoleEnv(gym.Env):
         'video.frames_per_second': 50
     }
 
-    def __init__(self):
+    def __init__(self, s_has_t=False):
         self.gravity = 9.8
         self.masscart = 1.0
         self.masspole = 0.1
@@ -80,14 +80,26 @@ class CartPoleEnv(gym.Env):
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds.
+        low = np.array([-self.x_threshold * 2,
+                         -np.finfo(np.float32).max,
+                         -self.theta_threshold_radians * 2,
+                         -np.finfo(np.float32).max],
+                        dtype=np.float32)
+
         high = np.array([self.x_threshold * 2,
                          np.finfo(np.float32).max,
                          self.theta_threshold_radians * 2,
                          np.finfo(np.float32).max],
                         dtype=np.float32)
 
+        self.s_has_t=s_has_t
+        if self.s_has_t:
+            low = np.append(low,0)
+            high = np.append(high,np.finfo(np.float32).max)
+            self.t = 0
+
         self.action_space = spaces.Discrete(2)
-        self.observation_space = spaces.Box(-high, high, dtype=np.float32)
+        self.observation_space = spaces.Box(low, high, dtype=np.float32)
 
         self.seed()
         self.viewer = None
@@ -103,7 +115,10 @@ class CartPoleEnv(gym.Env):
         err_msg = "%r (%s) invalid" % (action, type(action))
         assert self.action_space.contains(action), err_msg
 
-        x, x_dot, theta, theta_dot = self.state
+        if self.s_has_t:
+            x, x_dot, theta, theta_dot, t = self.state
+        else:
+            x, x_dot, theta, theta_dot = self.state
         force = self.force_mag if action == 1 else -self.force_mag
         costheta = math.cos(theta)
         sintheta = math.sin(theta)
@@ -125,7 +140,11 @@ class CartPoleEnv(gym.Env):
             theta_dot = theta_dot + self.tau * thetaacc
             theta = theta + self.tau * theta_dot
 
-        self.state = (x, x_dot, theta, theta_dot)
+        if self.s_has_t:
+            t += 1
+            self.state = (x, x_dot, theta, theta_dot, t)
+        else:
+            self.state = (x, x_dot, theta, theta_dot)
 
         done = bool(
             x < -self.x_threshold
@@ -155,6 +174,8 @@ class CartPoleEnv(gym.Env):
 
     def reset(self):
         self.state = self.np_random.uniform(low=-0.05, high=0.05, size=(4,))
+        if self.s_has_t:
+            self.state = np.append(self.state, 0)
         self.steps_beyond_done = None
         return np.array(self.state)
 
