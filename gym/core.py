@@ -185,7 +185,7 @@ class Env(object):
             return
 
         if self._owns_render:
-            self.render(close=True)
+            self.render()
 
         self._close()
         env_closer.unregister(self._env_closer_id)
